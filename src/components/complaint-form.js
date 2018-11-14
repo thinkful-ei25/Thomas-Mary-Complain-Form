@@ -31,7 +31,9 @@ export class ComplaintForm extends React.Component {
             }
             return;
         })
-        .then(() => console.log('Submitted with values', values))
+        .then(res => {
+            return 
+        })
         .catch(err => {
             const {reason, message, location} = err;
             if (reason === 'ValidationError') {
