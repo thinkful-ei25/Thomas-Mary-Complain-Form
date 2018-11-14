@@ -1,8 +1,55 @@
 import React from 'react';
-import { reduxForm, Field } from 'redux-form';
+import { reduxForm, Field, SubmissionError, focus } from 'redux-form';
 import { required, nonEmpty, validLength, allNumbers } from '../validators';
+import Input from './input';
 
 export class ComplaintForm extends React.Component {
+    onSubmit(values) {
+        return fetch('https://us-central1-delivery-form-api.cloudfunctions.net/api/report', {
+            method: 'POST',
+            body: JSON.stringify(values),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => {
+            if (!res.ok) {
+                if (
+                    res.headers.has('content-type') &&
+                    res.headers
+                        .get('content-type')
+                        .startsWith('application/json')
+                ) {
+                    // It's a nice JSON error returned by us, so decode it
+                    return res.json().then(err => Promise.reject(err));
+                }
+                // It's a less informative error returned by express
+                return Promise.reject({
+                    code: res.status,
+                    message: res.statusText
+                });
+            }
+            return;
+        })
+        .then(() => console.log('Submitted with values', values))
+        .catch(err => {
+            const {reason, message, location} = err;
+            if (reason === 'ValidationError') {
+                // Convert ValidationErrors into SubmissionErrors for Redux Form
+                return Promise.reject(
+                    new SubmissionError({
+                        [location]: message
+                    })
+                );
+            }
+            return Promise.reject(
+                new SubmissionError({
+                    _error: 'Error submitting message'
+                })
+            );
+        });
+    }
+
     render() {
         return (
             <div className="complaintForm">
@@ -41,5 +88,7 @@ export class ComplaintForm extends React.Component {
 }
 
 export default reduxForm({
-    form: 'complaint'
+    form: 'complaint',
+    onSubmitFail: (errors, dispatch) =>
+        dispatch(focus('contact', Object.keys(errors)[0]))
 })(ComplaintForm);
